@@ -1,1 +1,976 @@
-(to be filled)
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Der Faraday'sche Käfig — interaktiv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-app:#DEE1DF;
+    --paper:#F1F3F1;
+    --ink:#16233A;
+    --blueprint:#0E2440;
+    --blueprint-deep:#081729;
+    --line:#DCE6F2;
+    --line-dim:rgba(220,230,242,.45);
+    --amber:#E3A052;
+    --teal:#48C2B8;
+    --accent-red:#D96455;
+    --accent-green:#5FB583;
+    --metal:#8FA3B8;
+    --border-soft:rgba(22,35,58,.14);
+    --font-head:'Space Grotesk', sans-serif;
+    --font-body:'Source Serif 4', serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:var(--bg-app);
+    color:var(--ink);
+    font-family:var(--font-body);
+    display:flex; justify-content:center;
+    opacity:0; transform:translateY(6px);
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  body.loaded{ opacity:1; transform:translateY(0); }
+
+  .app{
+    width:100%; max-width:980px;
+    height:100vh; height:100dvh;
+    background:var(--paper);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 0 40px rgba(22,35,58,.08);
+  }
+
+  .topbar{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding:12px 20px;
+    border-bottom:1px solid var(--border-soft);
+    flex:0 0 auto; gap:12px;
+  }
+  .topbar-left{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .topbar-app{ font-family:var(--font-head); font-weight:500; font-size:.66rem; color:rgba(22,35,58,.5); letter-spacing:.2px; }
+  .topbar-title{ font-family:var(--font-head); font-weight:600; font-size:.92rem; line-height:1.25; }
+  .topbar-count{ font-family:var(--font-mono); font-size:.72rem; color:rgba(22,35,58,.55); flex:0 0 auto; padding-bottom:2px; }
+
+  .viewport{ flex:1; overflow:hidden; position:relative; }
+  .track{
+    display:flex; height:100%; width:800%;
+    transition:transform .5s cubic-bezier(.65,0,.35,1);
+  }
+  .slide{ flex:0 0 12.5%; width:12.5%; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .slide-inner{ display:flex; flex-direction:column; height:100%; }
+  .slide-inner.solo{ padding:28px 24px 40px; max-width:640px; margin:0 auto; height:auto; min-height:100%; }
+
+  .diagram-panel{
+    position:relative;
+    background:var(--blueprint);
+    background-image:
+      linear-gradient(rgba(220,230,242,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(220,230,242,.05) 1px, transparent 1px);
+    background-size:24px 24px;
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px;
+    padding:24px 18px 22px;
+  }
+  .diagram-panel svg{ width:100%; max-width:520px; height:auto; display:block; overflow:visible; }
+  .fig-tag{
+    position:absolute; top:14px; left:14px;
+    font-family:var(--font-mono); font-size:.66rem; color:var(--line-dim);
+    border:1px solid rgba(220,230,242,.25); padding:2px 8px; border-radius:2px; letter-spacing:.4px;
+  }
+
+  .slide-inner.solo h2{ font-family:var(--font-head); font-size:1.28rem; font-weight:600; margin:0 0 18px; line-height:1.3; }
+
+  .control-row{
+    width:100%; max-width:400px;
+    background:rgba(8,23,41,.55);
+    border:1px solid rgba(220,230,242,.18);
+    border-radius:8px;
+    padding:12px 14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .control-row.column{ flex-direction:column; align-items:stretch; gap:10px; }
+  .control-text{ display:flex; flex-direction:column; gap:2px; }
+  .control-title{ font-family:var(--font-head); font-size:.78rem; font-weight:600; color:var(--line); }
+  .status-text{ font-family:var(--font-mono); font-size:.7rem; color:var(--line-dim); }
+  .status-good{ color:var(--accent-green); }
+  .status-warn{ color:var(--accent-red); }
+
+  .btn{
+    font-family:var(--font-head); font-size:.82rem; font-weight:600;
+    background:var(--amber); color:var(--blueprint-deep);
+    border:none; padding:9px 16px; border-radius:5px; cursor:pointer;
+    align-self:flex-start;
+  }
+  .btn:active{ transform:scale(.97); }
+  .step-btn{
+    font-family:var(--font-head); font-size:1rem; font-weight:600;
+    background:transparent; color:var(--line);
+    border:1px solid rgba(220,230,242,.3); border-radius:5px;
+    width:34px; height:34px; flex:0 0 auto; cursor:pointer;
+  }
+  .step-btn:active{ transform:scale(.94); }
+  .step-btn:disabled{ opacity:.3; cursor:default; }
+  .step-row{ display:flex; align-items:center; gap:10px; }
+  .step-row .btn{ align-self:center; }
+
+  .toggle{ position:relative; display:inline-block; width:42px; height:24px; flex:0 0 auto; }
+  .toggle input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; z-index:2; }
+  .toggle-track{ position:absolute; inset:0; background:rgba(220,230,242,.22); border-radius:999px; transition:background .25s; }
+  .toggle-thumb{ position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:var(--line); transition:transform .25s; }
+  .toggle input:checked ~ .toggle-track{ background:var(--amber); }
+  .toggle input:checked ~ .toggle-track .toggle-thumb{ transform:translateX(18px); background:var(--blueprint-deep); }
+
+  .slider-row{ display:flex; flex-direction:column; gap:6px; width:100%; }
+  .slider-row .row-top{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:.72rem; color:var(--line); }
+  input[type=range]{ -webkit-appearance:none; width:100%; height:4px; background:rgba(220,230,242,.25); border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--amber); cursor:pointer; border:2px solid var(--blueprint-deep); }
+  input[type=range]::-moz-range-thumb{ width:16px; height:16px; border-radius:50%; background:var(--amber); cursor:pointer; border:2px solid var(--blueprint-deep); border:none; }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ font-family:var(--font-head); font-size:.72rem; padding:6px 13px; border-radius:999px; border:1px solid rgba(220,230,242,.3); background:transparent; color:var(--line); cursor:pointer; }
+  .chip.chip-active{ background:var(--amber); color:var(--blueprint-deep); border-color:var(--amber); font-weight:600; }
+
+  /* --- SVG shared --- */
+  .mesh-line{ stroke:var(--line); stroke-width:1; opacity:.5; }
+  .arrow-fill{ fill:var(--line); }
+  text{ font-family:var(--font-mono); }
+  .label-mono{ font-size:15px; fill:var(--amber); font-weight:600; }
+  .label-mono-sm{ font-size:10px; fill:var(--line-dim); }
+  .charge-bg-neg{ fill:var(--teal); stroke:var(--blueprint-deep); stroke-width:1; }
+  .charge-bg-pos{ fill:var(--amber); stroke:var(--blueprint-deep); stroke-width:1; }
+  .charge-bg-block{ fill:var(--teal); stroke:var(--accent-red); stroke-width:2; }
+  .charge-symbol{ font-size:13px; font-weight:700; text-anchor:middle; dominant-baseline:central; fill:var(--blueprint-deep); }
+  .face-caption{ font-size:12px; font-weight:600; }
+  .fline{ fill:none; stroke:var(--line); stroke-width:2; stroke-linecap:round; opacity:.9; }
+
+  /* slide 1 */
+  .cage-face{ fill:url(#mesh1); stroke:var(--line); stroke-width:2; stroke-linejoin:round; }
+  .cage-right{ filter:brightness(.72); }
+  .cage-top{ filter:brightness(1.18); }
+
+  /* slide 2 */
+  .slab2{ fill:url(#hatch2); stroke:var(--line); stroke-width:2; }
+  .plate-line{ stroke:var(--line); stroke-width:3; stroke-linecap:round; }
+
+  #plates2{ opacity:0; transition:opacity .4s ease; }
+  #influenceRoot.s1 #plates2{ opacity:1; }
+
+  .mover{ transform:translate(var(--x), var(--y)); transition:transform .7s cubic-bezier(.4,0,.2,1); }
+  #influenceRoot.s2 .mover{ transform:translate(calc(var(--x) + var(--dx)), calc(var(--y) + var(--dy))); }
+
+  #captions2{ opacity:0; transition:opacity .4s ease; }
+  #influenceRoot.s2 #captions2{ opacity:1; }
+
+  #fieldOuterLeft2, #fieldOuterRight2{ opacity:0; transition:opacity .4s ease; }
+  #influenceRoot.s1 #fieldOuterLeft2, #influenceRoot.s1 #fieldOuterRight2{ opacity:1; }
+
+  .fseg-induced{ fill:none; stroke:var(--amber); stroke-width:2; stroke-linecap:round; }
+
+  #fieldThroughSlab2{ opacity:0; transition:opacity .5s ease; }
+  #influenceRoot.s1 #fieldThroughSlab2{ opacity:1; }
+  #influenceRoot.s4 #fieldThroughSlab2{ opacity:0; }
+
+  #fieldInduced2{ opacity:0; transition:opacity .5s ease; }
+  #influenceRoot.s3 #fieldInduced2{ opacity:1; }
+  #influenceRoot.s4 #fieldInduced2{ opacity:0; }
+
+  #ezero2{ opacity:0; transition:opacity .5s ease .15s; }
+  #influenceRoot.s4 #ezero2{ opacity:1; }
+
+  .fseg{ fill:none; stroke:var(--line); stroke-width:2; stroke-linecap:round; }
+
+  /* slide 3 */
+  .shell-outer3{ fill:url(#hatch3); stroke:var(--line); stroke-width:2; }
+  .shell-inner3{ fill:var(--blueprint); stroke:var(--line); stroke-width:2; }
+  .core3{ fill:var(--amber); stroke:var(--blueprint-deep); stroke-width:1.5; }
+  .chg-neg3{ font-size:15px; fill:var(--teal); text-anchor:middle; font-weight:700; }
+  .chg-pos3{ font-size:15px; fill:var(--amber); text-anchor:middle; font-weight:700; }
+  .fline3{ stroke:var(--line); stroke-linecap:round; }
+
+  /* slide 4 */
+  .storm-cloud{ fill:var(--metal); opacity:.9; }
+  .ground-line{ stroke:var(--line-dim); stroke-width:2; }
+  .induced-pair{ transition:opacity .3s ease; }
+  .induced-pair.neutralized{ opacity:0; }
+  .descend-charge{ opacity:0; }
+  .descend-charge.firing{ animation:boltDescend4 .5s linear forwards; }
+  @keyframes boltDescend4{
+    0%{ transform:translate(240px,50px); opacity:0; }
+    6%{ opacity:1; }
+    25%{ transform:translate(222px,85px); }
+    50%{ transform:translate(242px,85px); }
+    75%{ transform:translate(218px,120px); }
+    88%{ opacity:1; }
+    100%{ transform:translate(245px,140px); opacity:0; }
+  }
+  .car-body, .car-cabin{ fill:var(--blueprint-deep); stroke:var(--line); stroke-width:2; }
+  .wheel{ fill:var(--ink); stroke:var(--line); stroke-width:1.5; }
+  .passenger{ fill:var(--teal); }
+  .passenger-glow{ fill:none; stroke:var(--teal); stroke-width:3; opacity:0; transform-box:fill-box; transform-origin:center; }
+  .passenger-glow.glow{ animation:glowKey4 1.1s ease-out; }
+  @keyframes glowKey4{ 0%{opacity:0; transform:scale(.5);} 35%{opacity:.6;} 100%{opacity:0; transform:scale(1.6);} }
+  .bolt4{ fill:none; stroke:var(--amber); stroke-width:4; stroke-linejoin:round; stroke-linecap:round; opacity:0; }
+  .bolt4.drawing{ opacity:1; animation:drawBolt4 .3s linear forwards; }
+  @keyframes drawBolt4{ from{ stroke-dashoffset:var(--len4); } to{ stroke-dashoffset:0; } }
+  .flash4{ fill:var(--line); opacity:0; }
+  .flash4.flashing{ animation:flashKey4 .4s ease-out; }
+  @keyframes flashKey4{ 0%{opacity:.5;} 100%{opacity:0;} }
+  .chain-dot{ fill:var(--amber); opacity:0; }
+  .bolt-chain.firing .chain-dot{ animation:pulseDot4 .5s ease forwards; }
+  @keyframes pulseDot4{ 0%{opacity:0;} 30%{opacity:1;} 100%{opacity:.25;} }
+
+  /* slide 5 */
+  .tent-fabric{ fill:url(#mesh5); stroke:var(--line); stroke-width:2; transition:stroke .3s, stroke-width .3s, opacity .3s; }
+  .dut-box{ fill:var(--blueprint-deep); stroke:var(--line); stroke-width:1.5; transition:opacity .3s; }
+  .dut-antenna{ stroke:var(--line); fill:var(--line); stroke-width:2; transition:stroke .3s, fill .3s; }
+  .noise-wave{ fill:none; stroke:var(--line-dim); stroke-width:2; stroke-dasharray:5 6; transition:stroke .3s, stroke-width .3s; }
+  .noise-group{ animation:noisePulse5 2.4s ease-in-out infinite; transition:opacity .3s; }
+  @keyframes noisePulse5{ 0%,100%{opacity:.55;} 50%{opacity:1;} }
+
+  .dimmed{ opacity:.22 !important; }
+  .dimmed.noise-group{ animation-play-state:paused; }
+
+  .hl-active{ filter:drop-shadow(0 0 8px var(--amber)); }
+  .tent-fabric.hl-active{ stroke:var(--amber); stroke-width:4; }
+  .dut-box.hl-active rect{ stroke:var(--amber); stroke-width:3; }
+  .dut-box.hl-active .dut-antenna{ stroke:var(--amber); fill:var(--amber); }
+  .noise-group.hl-active{ opacity:1; animation-play-state:paused; }
+  .noise-group.hl-active .noise-wave{ stroke:var(--amber); stroke-width:3; }
+
+  /* slide 6 */
+  .wave-path{ fill:none; stroke:var(--line); stroke-width:2.5; }
+  .door-panel6{ fill:var(--metal); stroke:var(--line); stroke-width:2; }
+  .hole6{ fill:var(--blueprint); }
+  .bracket6{ stroke:var(--line-dim); stroke-width:1.3; fill:none; }
+  .bracket-label6{ font-size:10px; fill:var(--line-dim); text-anchor:middle; }
+  .wave-out6, .wave-reflect6{ transition:opacity .3s; }
+
+  /* slide 7 */
+  .jacket7{ fill:var(--blueprint-deep); stroke:var(--line); stroke-width:2; }
+  .shield7{ fill:url(#hatch7); stroke:var(--line); stroke-width:1.5; }
+  .dielectric7{ fill:var(--paper); opacity:.85; stroke:var(--line); stroke-width:1; }
+  .core7{ fill:var(--amber); stroke:var(--blueprint-deep); stroke-width:1; }
+  .leader-line7{ stroke:var(--line-dim); stroke-width:1; }
+  .leader-text7{ font-size:10.5px; fill:var(--line); }
+  #noiseGroup7{ opacity:0; transition:opacity .4s; }
+  #noiseGroup7.active{ opacity:1; }
+  .noise-block7{ stroke:var(--accent-red); stroke-width:2; fill:none; }
+  .noise-arrow7{ stroke:var(--line); stroke-width:2; fill:none; stroke-linecap:round; stroke-dasharray:6 6; }
+  #noiseGroup7.active .noise-arrow7{ animation:noiseFlow7 .9s linear infinite; }
+  @keyframes noiseFlow7{ to{ stroke-dashoffset:-24; } }
+  #noiseGroup7.active .mover{ transform:translate(calc(var(--x) + var(--dx)), calc(var(--y) + var(--dy))); transition-delay:.15s; }
+
+  /* literature */
+  .lit-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; }
+  .lit-item{ display:flex; gap:12px; align-items:baseline; }
+  .lit-num{ font-family:var(--font-mono); font-size:.78rem; color:rgba(22,35,58,.5); flex:0 0 auto; min-width:22px; }
+  .lit-text{ font-size:.92rem; line-height:1.55; }
+  .lit-text a{ color:var(--ink); }
+
+  .controls{
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    padding:12px; border-top:1px solid var(--border-soft);
+  }
+  .nav-btn{
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--border-soft);
+    background:transparent; font-size:1.15rem; color:var(--ink); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nav-btn:disabled{ opacity:.28; cursor:default; }
+  .dots{ display:flex; gap:7px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:rgba(22,35,58,.22); border:none; padding:0; cursor:pointer; transition:.25s; }
+  .dot.active{ background:var(--ink); width:18px; border-radius:4px; }
+
+  button:focus-visible, input:focus-visible, .dot:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+
+  @media (prefers-reduced-motion:reduce){
+    .noise-group, .bolt-chain.firing .chain-dot,
+    .flash4.flashing, .passenger-glow.glow, .bolt4.drawing, .descend-charge.firing,
+    .noise-arrow7, .charge-bg-block, .hl-active{ animation:none !important; }
+    *{ transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-app">Der Faraday'sche Käfig</span>
+      <span class="topbar-title" id="slideTitle">1. Definition</span>
+    </div>
+    <span class="topbar-count" id="pageCount">1 / 8</span>
+  </header>
+
+  <main class="viewport">
+    <div class="track" id="track">
+
+      <!-- SLIDE 1 — Definition -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 01</span>
+            <svg viewBox="0 0 480 300" role="img" aria-label="Ein Faraday'scher Käfig: eine geschlossene, maschenartige Hülle aus leitfähigem Material">
+              <defs>
+                <pattern id="mesh1" width="12" height="12" patternUnits="userSpaceOnUse">
+                  <path d="M0 0 L12 0 M0 0 L0 12" class="mesh-line"/>
+                </pattern>
+              </defs>
+              <path class="cage-face cage-right" d="M300,90 L300,235 L365,195 L365,55 Z"/>
+              <path class="cage-face cage-top" d="M140,90 L300,90 L365,55 L205,55 Z"/>
+              <path class="cage-face cage-front" d="M140,90 L300,90 L300,235 L140,235 Z"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2 — Elektrostatische Influenz -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 02</span>
+            <svg viewBox="0 0 480 300" role="img" aria-label="Zwei geladene Platten erzeugen ein äußeres Feld. Die Ladungsträger im Leiter verschieben sich und bauen ein entgegengesetztes Gegenfeld auf; im Leiterinneren löschen sich beide Felder gegenseitig aus">
+              <defs>
+                <pattern id="hatch2" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="10" class="mesh-line"/>
+                </pattern>
+                <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" class="arrow-fill"/>
+                </marker>
+                <marker id="arrow2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill="var(--amber)"/>
+                </marker>
+              </defs>
+              <g id="influenceRoot">
+                <rect x="200" y="50" width="80" height="200" class="slab2"/>
+                <g id="plates2">
+                  <text x="18" y="24" text-anchor="middle" class="face-caption" fill="var(--amber)">Feldquelle</text>
+                  <text x="462" y="24" text-anchor="middle" class="face-caption" fill="var(--teal)">Feldsenke</text>
+                  <line x1="18" y1="40" x2="18" y2="260" class="plate-line"/>
+                  <line x1="462" y1="40" x2="462" y2="260" class="plate-line"/>
+                  <g class="charge" transform="translate(18,70)"><circle r="8" class="charge-bg-pos"/><text class="charge-symbol" font-size="11">+</text></g>
+                  <g class="charge" transform="translate(18,110)"><circle r="8" class="charge-bg-pos"/><text class="charge-symbol" font-size="11">+</text></g>
+                  <g class="charge" transform="translate(18,150)"><circle r="8" class="charge-bg-pos"/><text class="charge-symbol" font-size="11">+</text></g>
+                  <g class="charge" transform="translate(18,190)"><circle r="8" class="charge-bg-pos"/><text class="charge-symbol" font-size="11">+</text></g>
+                  <g class="charge" transform="translate(18,230)"><circle r="8" class="charge-bg-pos"/><text class="charge-symbol" font-size="11">+</text></g>
+                  <g class="charge" transform="translate(462,70)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge" transform="translate(462,110)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge" transform="translate(462,150)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge" transform="translate(462,190)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge" transform="translate(462,230)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                </g>
+                <g id="captions2">
+                  <text x="125" y="30" class="face-caption" fill="var(--teal)">− linke Fläche</text>
+                  <text x="355" y="30" class="face-caption" fill="var(--amber)" text-anchor="end">+ rechte Fläche</text>
+                </g>
+                <g id="chargePairs2">
+                  <g class="charge mover" style="--x:232px;--y:74px;--dx:48px;--dy:0px"><circle r="9" class="charge-bg-pos"/><text class="charge-symbol">+</text></g>
+                  <g class="charge mover" style="--x:248px;--y:74px;--dx:-48px;--dy:0px"><circle r="9" class="charge-bg-neg"/><text class="charge-symbol">−</text></g>
+                  <g class="charge mover" style="--x:232px;--y:114px;--dx:48px;--dy:0px"><circle r="9" class="charge-bg-pos"/><text class="charge-symbol">+</text></g>
+                  <g class="charge mover" style="--x:248px;--y:114px;--dx:-48px;--dy:0px"><circle r="9" class="charge-bg-neg"/><text class="charge-symbol">−</text></g>
+                  <g class="charge mover" style="--x:232px;--y:154px;--dx:48px;--dy:0px"><circle r="9" class="charge-bg-pos"/><text class="charge-symbol">+</text></g>
+                  <g class="charge mover" style="--x:248px;--y:154px;--dx:-48px;--dy:0px"><circle r="9" class="charge-bg-neg"/><text class="charge-symbol">−</text></g>
+                  <g class="charge mover" style="--x:232px;--y:194px;--dx:48px;--dy:0px"><circle r="9" class="charge-bg-pos"/><text class="charge-symbol">+</text></g>
+                  <g class="charge mover" style="--x:248px;--y:194px;--dx:-48px;--dy:0px"><circle r="9" class="charge-bg-neg"/><text class="charge-symbol">−</text></g>
+                  <g class="charge mover" style="--x:232px;--y:234px;--dx:48px;--dy:0px"><circle r="9" class="charge-bg-pos"/><text class="charge-symbol">+</text></g>
+                  <g class="charge mover" style="--x:248px;--y:234px;--dx:-48px;--dy:0px"><circle r="9" class="charge-bg-neg"/><text class="charge-symbol">−</text></g>
+                </g>
+                <g id="fieldOuterLeft2">
+                  <line class="fseg" marker-end="url(#arrow2)" x1="38" y1="70" x2="196" y2="70"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="38" y1="110" x2="196" y2="110"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="38" y1="150" x2="196" y2="150"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="38" y1="190" x2="196" y2="190"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="38" y1="230" x2="196" y2="230"/>
+                </g>
+                <g id="fieldOuterRight2">
+                  <line class="fseg" marker-end="url(#arrow2)" x1="284" y1="70" x2="442" y2="70"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="284" y1="110" x2="442" y2="110"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="284" y1="150" x2="442" y2="150"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="284" y1="190" x2="442" y2="190"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="284" y1="230" x2="442" y2="230"/>
+                </g>
+                <g id="fieldThroughSlab2">
+                  <line class="fseg" marker-end="url(#arrow2)" x1="200" y1="70" x2="280" y2="70"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="200" y1="110" x2="280" y2="110"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="200" y1="150" x2="280" y2="150"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="200" y1="190" x2="280" y2="190"/>
+                  <line class="fseg" marker-end="url(#arrow2)" x1="200" y1="230" x2="280" y2="230"/>
+                </g>
+                <g id="fieldInduced2">
+                  <line class="fseg-induced" marker-end="url(#arrow2b)" x1="280" y1="76" x2="200" y2="76"/>
+                  <line class="fseg-induced" marker-end="url(#arrow2b)" x1="280" y1="116" x2="200" y2="116"/>
+                  <line class="fseg-induced" marker-end="url(#arrow2b)" x1="280" y1="156" x2="200" y2="156"/>
+                  <line class="fseg-induced" marker-end="url(#arrow2b)" x1="280" y1="196" x2="200" y2="196"/>
+                  <line class="fseg-induced" marker-end="url(#arrow2b)" x1="280" y1="236" x2="200" y2="236"/>
+                </g>
+                <text id="ezero2" x="240" y="154" text-anchor="middle" class="label-mono">E = 0</text>
+              </g>
+            </svg>
+            <div class="control-row column">
+              <div class="step-row">
+                <button class="step-btn" id="stepBack2" aria-label="Schritt zurück" disabled>‹</button>
+                <button class="btn" id="stepNext2">Feld anlegen</button>
+              </div>
+              <span class="status-text" id="status2">Schritt 0 / 4 — Leiter ist neutral</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3 — Gauß'scher Satz -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 03</span>
+            <svg viewBox="0 0 480 365" role="img" aria-label="Das Feld der Ladung im Hohlraum endet an der Innenwand und dringt nicht nach außen; außerhalb der Hülle existiert ein eigenständiges Feld, erzeugt von der äußeren Ladung">
+              <defs>
+                <pattern id="hatch3" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="10" class="mesh-line"/>
+                </pattern>
+                <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" class="arrow-fill"/>
+                </marker>
+              </defs>
+              <text x="65" y="35" class="face-caption" fill="var(--teal)">− Innenseite</text>
+              <text x="415" y="35" class="face-caption" fill="var(--amber)" text-anchor="end">+ Außenseite</text>
+              <text x="460" y="350" class="face-caption" fill="var(--line-dim)" text-anchor="end" font-size="11">Feld ∝ Gesamtladung Q, unabhängig von Position im Hohlraum</text>
+              <circle cx="240" cy="170" r="115" class="shell-outer3"/>
+              <circle cx="240" cy="170" r="75" class="shell-inner3"/>
+              <g id="fieldLinesInner3">
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+              </g>
+              <g id="fieldLines3">
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+                <line class="fline3" marker-end="url(#arrow3)"/>
+              </g>
+              <g id="innerCharges3"></g>
+              <g id="outerCharges3"></g>
+              <circle id="centerCharge3" cx="240" cy="170" r="13" class="core3"/>
+              <text x="240" y="174" text-anchor="middle" font-size="11" fill="var(--blueprint-deep)" font-weight="700">+Q</text>
+            </svg>
+            <div class="control-row column">
+              <div class="slider-row">
+                <div class="row-top"><span>Ladung im Hohlraum</span><span>Q = <span id="qVal3">2</span></span></div>
+                <input type="range" id="qSlider" min="1" max="5" step="1" value="2" aria-label="Ladung Q einstellen">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4 — Blitzschutz -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 04</span>
+            <svg viewBox="0 0 480 300" role="img" aria-label="Eine negativ geladene Gewitterwolke induziert im neutralen Fahrzeug eine Ladungstrennung (oben +, unten −); beim Einschlag gleichen sich die Ladungen aus, während der Strom außen um die Karosserie zum Boden abfließt">
+              <rect id="flash4" class="flash4" x="0" y="0" width="480" height="300"/>
+              <g class="storm-cloud">
+                <ellipse cx="200" cy="28" rx="35" ry="17"/>
+                <ellipse cx="240" cy="18" rx="46" ry="21"/>
+                <ellipse cx="284" cy="28" rx="37" ry="18"/>
+                <ellipse cx="240" cy="36" rx="62" ry="15"/>
+              </g>
+              <g class="cloud-charges">
+                <g class="charge" transform="translate(195,47)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                <g class="charge" transform="translate(222,50)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                <g class="charge" transform="translate(250,50)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+                <g class="charge" transform="translate(278,50)"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+              </g>
+              <line class="ground-line" x1="40" y1="272" x2="440" y2="272"/>
+              <path class="car-cabin" d="M175,190 L205,140 L275,140 L305,190 Z"/>
+              <rect class="car-body" x="140" y="190" width="200" height="55" rx="10"/>
+              <circle class="wheel" cx="185" cy="245" r="20"/>
+              <circle class="wheel" cx="295" cy="245" r="20"/>
+              <circle class="passenger-glow" id="passengerGlow4" cx="240" cy="167" r="9"/>
+              <circle class="passenger" cx="240" cy="167" r="8"/>
+              <g class="charge induced-pair" id="roofCharge4" transform="translate(240,146)"><circle r="7" class="charge-bg-pos"/><text class="charge-symbol" font-size="9">+</text></g>
+              <g class="charge induced-pair" id="underCharge4" transform="translate(240,247)"><circle r="7" class="charge-bg-neg"/><text class="charge-symbol" font-size="9">−</text></g>
+              <g class="bolt-chain" id="boltChain4">
+                <circle class="chain-dot" cx="245" cy="140" r="4" style="animation-delay:0ms"/>
+                <circle class="chain-dot" cx="215" cy="150" r="4" style="animation-delay:50ms"/>
+                <circle class="chain-dot" cx="190" cy="160" r="4" style="animation-delay:100ms"/>
+                <circle class="chain-dot" cx="170" cy="175" r="4" style="animation-delay:150ms"/>
+                <circle class="chain-dot" cx="150" cy="195" r="4" style="animation-delay:200ms"/>
+                <circle class="chain-dot" cx="140" cy="215" r="4" style="animation-delay:250ms"/>
+                <circle class="chain-dot" cx="138" cy="235" r="4" style="animation-delay:300ms"/>
+                <circle class="chain-dot" cx="145" cy="255" r="4" style="animation-delay:350ms"/>
+                <circle class="chain-dot" cx="160" cy="268" r="4" style="animation-delay:400ms"/>
+                <circle class="chain-dot" cx="178" cy="272" r="4" style="animation-delay:450ms"/>
+                <circle class="chain-dot" cx="235" cy="140" r="4" style="animation-delay:0ms"/>
+                <circle class="chain-dot" cx="265" cy="150" r="4" style="animation-delay:50ms"/>
+                <circle class="chain-dot" cx="290" cy="160" r="4" style="animation-delay:100ms"/>
+                <circle class="chain-dot" cx="310" cy="175" r="4" style="animation-delay:150ms"/>
+                <circle class="chain-dot" cx="330" cy="195" r="4" style="animation-delay:200ms"/>
+                <circle class="chain-dot" cx="340" cy="215" r="4" style="animation-delay:250ms"/>
+                <circle class="chain-dot" cx="342" cy="235" r="4" style="animation-delay:300ms"/>
+                <circle class="chain-dot" cx="335" cy="255" r="4" style="animation-delay:350ms"/>
+                <circle class="chain-dot" cx="320" cy="268" r="4" style="animation-delay:400ms"/>
+                <circle class="chain-dot" cx="302" cy="272" r="4" style="animation-delay:450ms"/>
+              </g>
+              <path id="bolt4" class="bolt4" d="M240,50 L222,85 L242,85 L218,120 L245,140"/>
+              <g class="charge descend-charge" id="descendCharge4"><circle r="8" class="charge-bg-neg"/><text class="charge-symbol" font-size="11">−</text></g>
+            </svg>
+            <div class="control-row">
+              <button class="btn" id="strikeBtn">Blitz auslösen</button>
+              <span class="status-text">Ladungsausgleich — Insassen bleiben geschützt</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5 — EMV -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 05</span>
+            <svg viewBox="0 0 480 300" role="img" aria-label="Ein abgeschirmtes Messzelt schützt ein Prüfobjekt vor äußeren Störsignalen">
+              <defs>
+                <pattern id="mesh5" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M0 0 L10 0 M0 0 L0 10" class="mesh-line"/>
+                </pattern>
+                <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill="var(--line-dim)"/>
+                </marker>
+              </defs>
+              <g class="noise-group" id="noise5">
+                <path class="noise-wave" marker-end="url(#arrow5)" d="M15,150 Q40,138 60,150 Q80,162 100,150 Q112,143 118,140"/>
+                <path class="noise-wave" marker-end="url(#arrow5)" d="M240,20 Q252,42 240,62 Q228,82 240,95"/>
+                <path class="noise-wave" marker-end="url(#arrow5)" d="M465,150 Q440,138 420,150 Q400,162 380,150 Q368,143 362,140"/>
+              </g>
+              <path class="tent-fabric" id="tentFabric5" d="M120,258 L160,120 Q240,82 320,120 L360,258 Z"/>
+              <g class="dut-box" id="dut5">
+                <line class="dut-antenna" x1="240" y1="188" x2="240" y2="163"/>
+                <circle class="dut-antenna" cx="240" cy="159" r="4"/>
+                <rect x="213" y="188" width="54" height="36" rx="4"/>
+              </g>
+            </svg>
+            <div class="control-row column">
+              <div class="chip-row">
+                <button class="chip" data-target="tentFabric5">Gewebe</button>
+                <button class="chip" data-target="dut5">Prüfobjekt</button>
+                <button class="chip" data-target="noise5">Störfeld</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6 — Mikrowelle -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 06</span>
+            <svg viewBox="0 0 480 300" role="img" aria-label="Ein Metallgitter blockiert Mikrowellen, deren Wellenlänge größer als die Maschenweite ist">
+              <path class="wave-path" d="M15,150 C35,110 55,110 75,150 C95,190 115,190 135,150 C155,110 175,110 195,150"/>
+              <path class="bracket6" d="M55,180 L55,190 L155,190 L155,180"/>
+              <text x="105" y="205" class="bracket-label6">λ (Mikrowelle)</text>
+              <rect class="door-panel6" x="215" y="40" width="50" height="220"/>
+              <g id="holesGroup6"></g>
+              <path class="wave-path wave-out6" id="waveOut6" d="M285,150 C305,110 325,110 345,150 C365,190 385,190 405,150 C425,110 445,110 465,150"/>
+              <path class="wave-path wave-reflect6" id="waveReflect6" marker-end="url(#arrowR6)" d="M205,150 C185,130 165,170 145,150"/>
+              <defs>
+                <marker id="arrowR6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill="var(--line)"/>
+                </marker>
+              </defs>
+            </svg>
+            <div class="control-row column">
+              <div class="slider-row">
+                <div class="row-top"><span>Maschenweite</span><span id="meshLabel6">klein (≪ Wellenlänge)</span></div>
+                <input type="range" id="meshSlider" min="1" max="10" step="1" value="3" aria-label="Maschenweite des Metallgitters einstellen">
+              </div>
+              <span class="status-text status-good" id="meshStatus6">Sicher: Mikrowellen bleiben im Garraum</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7 — Koaxialkabel -->
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="diagram-panel">
+            <span class="fig-tag">Abb. 07</span>
+            <svg viewBox="0 0 480 320" role="img" aria-label="Querschnitt eines Koaxialkabels, dessen Schirmgeflecht äußere Störfelder abhält">
+              <defs>
+                <pattern id="hatch7" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="8" class="mesh-line"/>
+                </pattern>
+              </defs>
+              <g id="noiseGroup7">
+                <path class="noise-arrow7" d="M240,20 L240,48"/>
+                <path class="noise-arrow7" d="M102,93 L135,115"/>
+                <path class="noise-arrow7" d="M378,93 L345,115"/>
+                <g class="charge mover" style="--x:205px;--y:78px;--dx:35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+                <g class="charge mover" style="--x:170px;--y:145px;--dx:-35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+                <g class="charge mover" style="--x:310px;--y:145px;--dx:35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+              </g>
+              <circle class="jacket7" cx="240" cy="160" r="92"/>
+              <circle class="shield7" cx="240" cy="160" r="76"/>
+              <circle class="dielectric7" cx="240" cy="160" r="55"/>
+              <circle class="core7" cx="240" cy="160" r="20"/>
+              <line class="leader-line7" x1="226" y1="146" x2="120" y2="60"/>
+              <text class="leader-text7" x="30" y="55">Innenleiter</text>
+              <text class="leader-text7" x="30" y="68">(Kupferkern)</text>
+              <line class="leader-line7" x1="272" y1="122" x2="385" y2="60"/>
+              <text class="leader-text7" x="310" y="55">Dielektrikum</text>
+              <text class="leader-text7" x="310" y="68">(Isolierung)</text>
+              <line class="leader-line7" x1="178" y1="212" x2="75" y2="272"/>
+              <text class="leader-text7" x="15" y="288">Schirmgeflecht</text>
+              <text class="leader-text7" x="15" y="301">(Außenleiter)</text>
+              <line class="leader-line7" x1="298" y1="222" x2="395" y2="275"/>
+              <text class="leader-text7" x="335" y="291">Außenmantel</text>
+            </svg>
+            <div class="control-row">
+              <label class="toggle">
+                <input type="checkbox" id="toggle7" aria-label="Störfeld ein- oder ausschalten">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+              <div class="control-text">
+                <span class="control-title">Störfeld</span>
+                <span class="status-text" id="status7">Aus</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8 — Literaturverzeichnis -->
+      <section class="slide">
+        <div class="slide-inner solo">
+          <h2>Literaturverzeichnis</h2>
+          <ol class="lit-list">
+            <li class="lit-item"><span class="lit-num">1</span><span class="lit-text">Jackson, J. D. <em>Classical Electrodynamics</em>. 3. New York : Wiley, 1998.</span></li>
+            <li class="lit-item"><span class="lit-num">2</span><span class="lit-text">Demtröder, W. <em>Experimentalphysik 2: Elektrizität und Optik</em>. 7. Berlin : Springer Spektrum, 2018.</span></li>
+            <li class="lit-item"><span class="lit-num">3</span><span class="lit-text">Griffiths, D. J. <em>Introduction to Electrodynamics</em>. 4. Cambridge : Cambridge University Press, 2017.</span></li>
+            <li class="lit-item"><span class="lit-num">4</span><span class="lit-text">Urone, Paul Peter und Hinrichs, Roger. 18.7 Conductors and Electric Fields in Static Equilibrium. <em>College Physics 2e</em>. [Online] 13.07.2022. [Zitat vom: 06.09.2026.] <a href="https://openstax.org/books/college-physics-2e/pages/18-7-conductors-and-electric-fields-in-static-equilibrium" target="_blank" rel="noopener">openstax.org/.../18-7-conductors-and-electric-fields-in-static-equilibrium</a>.</span></li>
+            <li class="lit-item"><span class="lit-num">5</span><span class="lit-text">A Contribution to Shielding Effectiveness Analysis of Shielded Tents. Vranić, Z. M. 2, 2004, <em>Serbian Journal of Electrical Engineering</em>, Bd. 1, S. 199–206.</span></li>
+            <li class="lit-item"><span class="lit-num">6</span><span class="lit-text">Ott, H. W. <em>Electromagnetic Compatibility Engineering</em>. Rev. Hoboken, NJ : Wiley, 2009.</span></li>
+          </ol>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <nav class="controls">
+    <button class="nav-btn" id="prevBtn" aria-label="Vorherige Seite">‹</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-btn" id="nextBtn" aria-label="Nächste Seite">›</button>
+  </nav>
+
+</div>
+
+<script>
+(function(){
+  function safe(name, fn){
+    try { fn(); } catch(err){ console.error('[Faraday-Deck] Fehler in "' + name + '":', err); }
+  }
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  function polar(cx,cy,r,deg){
+    var rad = deg*Math.PI/180;
+    return [cx + r*Math.cos(rad), cy + r*Math.sin(rad)];
+  }
+
+  var SLIDES = 8;
+  var current = 0;
+  var goTo = function(){};
+
+  safe('Navigation', function(){
+    var track = document.getElementById('track');
+    var dotsWrap = document.getElementById('dots');
+    var prevBtn = document.getElementById('prevBtn');
+    var nextBtn = document.getElementById('nextBtn');
+    var pageCount = document.getElementById('pageCount');
+    var slideTitleEl = document.getElementById('slideTitle');
+    var titles = [
+      '1. Definition',
+      '2.1 Elektrostatische Influenz',
+      "2.2 Gauß'scher Satz",
+      '3. Blitzschutz',
+      '3. EMV-Messtechnik',
+      '3. Mikrowelle',
+      '3. Koaxialkabel',
+      'Literaturverzeichnis'
+    ];
+
+    for(var i=0;i<SLIDES;i++){
+      var d = document.createElement('button');
+      d.className = 'dot' + (i===0?' active':'');
+      d.setAttribute('aria-label', 'Zu Seite ' + (i+1) + ' springen');
+      (function(idx){ d.addEventListener('click', function(){ goTo(idx); }); })(i);
+      dotsWrap.appendChild(d);
+    }
+
+    goTo = function(idx){
+      current = Math.max(0, Math.min(SLIDES-1, idx));
+      track.style.transform = 'translateX(-' + (current*(100/SLIDES)) + '%)';
+      var dots = dotsWrap.querySelectorAll('.dot');
+      dots.forEach(function(dot,i){ dot.classList.toggle('active', i===current); });
+      prevBtn.disabled = current===0;
+      nextBtn.disabled = current===SLIDES-1;
+      pageCount.textContent = (current+1) + ' / ' + SLIDES;
+      slideTitleEl.textContent = titles[current];
+    };
+
+    prevBtn.addEventListener('click', function(){ goTo(current-1); });
+    nextBtn.addEventListener('click', function(){ goTo(current+1); });
+    document.addEventListener('keydown', function(e){
+      if(e.key==='ArrowRight') goTo(current+1);
+      if(e.key==='ArrowLeft') goTo(current-1);
+    });
+
+    var touchStartX=0, touchStartY=0;
+    var viewportEl = document.querySelector('.viewport');
+    viewportEl.addEventListener('touchstart', function(e){
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+    }, {passive:true});
+    viewportEl.addEventListener('touchend', function(e){
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      var dy = e.changedTouches[0].clientY - touchStartY;
+      if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)*1.4){
+        if(dx < 0) goTo(current+1); else goTo(current-1);
+      }
+    }, {passive:true});
+
+    goTo(0);
+  });
+
+  safe('Slide 2 – Influenz', function(){
+    var influenceRoot = document.getElementById('influenceRoot');
+    var stepNext2 = document.getElementById('stepNext2');
+    var stepBack2 = document.getElementById('stepBack2');
+    var status2 = document.getElementById('status2');
+    var STEP_COUNT = 4;
+    var step = 0;
+
+    var nextLabels = [
+      'Feld anlegen',
+      'Ladungen trennen',
+      'Gegenfeld zeigen',
+      'Felder auslöschen',
+      'Zurücksetzen'
+    ];
+    var statusTexts = [
+      'Schritt 0 / 4 — Leiter ist neutral',
+      'Schritt 1 / 4 — Außenfeld angelegt',
+      'Schritt 2 / 4 — Ladungen zu den Flächen verschoben',
+      'Schritt 3 / 4 — Gegenfeld baut sich im Leiter auf',
+      'Schritt 4 / 4 — Felder löschen sich aus → E = 0'
+    ];
+
+    function render(){
+      influenceRoot.classList.toggle('s1', step>=1);
+      influenceRoot.classList.toggle('s2', step>=2);
+      influenceRoot.classList.toggle('s3', step>=3);
+      influenceRoot.classList.toggle('s4', step>=4);
+      status2.textContent = statusTexts[step];
+      stepNext2.textContent = nextLabels[step];
+      stepBack2.disabled = (step===0);
+    }
+
+    stepNext2.addEventListener('click', function(){
+      step = (step>=STEP_COUNT) ? 0 : step+1;
+      render();
+    });
+    stepBack2.addEventListener('click', function(){
+      step = Math.max(0, step-1);
+      render();
+    });
+
+    render();
+  });
+
+  safe('Slide 3 – Gauß', function(){
+    var qSlider = document.getElementById('qSlider');
+    var qVal3 = document.getElementById('qVal3');
+    var innerG = document.getElementById('innerCharges3');
+    var outerG = document.getElementById('outerCharges3');
+    var centerCharge3 = document.getElementById('centerCharge3');
+    var flinesOuter3 = document.querySelectorAll('#fieldLines3 .fline3');
+    var flinesInner3 = document.querySelectorAll('#fieldLinesInner3 .fline3');
+
+    function renderGauss(q){
+      qVal3.textContent = q;
+      var coreR = 9 + q*2.6;
+      centerCharge3.setAttribute('r', coreR);
+      var count = 4 + q*2;
+      innerG.innerHTML = '';
+      outerG.innerHTML = '';
+      for(var i=0;i<count;i++){
+        var deg = i*(360/count);
+        var pin = polar(240,170,75,deg);
+        var g1 = document.createElementNS(svgNS,'g');
+        g1.setAttribute('class','charge');
+        g1.setAttribute('transform','translate('+pin[0]+','+pin[1]+')');
+        var c1 = document.createElementNS(svgNS,'circle'); c1.setAttribute('r','9'); c1.setAttribute('class','charge-bg-neg');
+        var s1 = document.createElementNS(svgNS,'text'); s1.setAttribute('class','charge-symbol'); s1.textContent='−';
+        g1.appendChild(c1); g1.appendChild(s1);
+        innerG.appendChild(g1);
+        var pout = polar(240,170,115,deg);
+        var g2 = document.createElementNS(svgNS,'g');
+        g2.setAttribute('class','charge');
+        g2.setAttribute('transform','translate('+pout[0]+','+pout[1]+')');
+        var c2 = document.createElementNS(svgNS,'circle'); c2.setAttribute('r','9'); c2.setAttribute('class','charge-bg-pos');
+        var s2 = document.createElementNS(svgNS,'text'); s2.setAttribute('class','charge-symbol'); s2.textContent='+';
+        g2.appendChild(c2); g2.appendChild(s2);
+        outerG.appendChild(g2);
+      }
+      // Feld im Hohlraum: von der Ladung bis zur Innenwand — endet dort, geht NICHT durch den Leiter hindurch
+      flinesInner3.forEach(function(line, i){
+        var deg = i*45;
+        var p1 = polar(240,170,coreR+7,deg);
+        var p2 = polar(240,170,73,deg);
+        line.setAttribute('x1',p1[0]); line.setAttribute('y1',p1[1]);
+        line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
+        line.setAttribute('stroke-width', 1.3+q*0.35);
+      });
+      // Feld außerhalb der Hülle: eigenständiges Feld, erzeugt von der äußeren Ladung +Q
+      flinesOuter3.forEach(function(line, i){
+        var deg = i*45;
+        var p1 = polar(240,170,118,deg);
+        var p2 = polar(240,170,140+q*8,deg);
+        line.setAttribute('x1',p1[0]); line.setAttribute('y1',p1[1]);
+        line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
+        line.setAttribute('stroke-width', 1.3+q*0.35);
+      });
+    }
+    qSlider.addEventListener('input', function(){ renderGauss(+this.value); });
+    renderGauss(2);
+  });
+
+  safe('Slide 4 – Blitzschutz', function(){
+    var bolt4 = document.getElementById('bolt4');
+    var len4 = 260;
+    if (typeof bolt4.getTotalLength === 'function'){
+      try { len4 = bolt4.getTotalLength(); } catch(e){ len4 = 260; }
+    }
+    bolt4.style.setProperty('--len4', len4);
+    bolt4.setAttribute('stroke-dasharray', len4);
+    bolt4.setAttribute('stroke-dashoffset', len4);
+
+    var strikeBtn = document.getElementById('strikeBtn');
+    var flash4 = document.getElementById('flash4');
+    var boltChain4 = document.getElementById('boltChain4');
+    var passengerGlow4 = document.getElementById('passengerGlow4');
+    var descendCharge4 = document.getElementById('descendCharge4');
+    var roofCharge4 = document.getElementById('roofCharge4');
+    var underCharge4 = document.getElementById('underCharge4');
+
+    function forceReflow(el){
+      try { return window.getComputedStyle(el).opacity; } catch(e){ return null; }
+    }
+
+    function fireBolt(){
+      [bolt4, flash4, boltChain4, passengerGlow4, descendCharge4].forEach(function(el){
+        el.classList.remove('drawing','flashing','firing','glow');
+      });
+      roofCharge4.classList.remove('neutralized');
+      underCharge4.classList.remove('neutralized');
+      forceReflow(descendCharge4);
+      descendCharge4.classList.add('firing');
+      setTimeout(function(){
+        forceReflow(bolt4);
+        bolt4.classList.add('drawing');
+        flash4.classList.add('flashing');
+        boltChain4.classList.add('firing');
+        roofCharge4.classList.add('neutralized');
+        underCharge4.classList.add('neutralized');
+      }, 460);
+      setTimeout(function(){ passengerGlow4.classList.add('glow'); }, 1150);
+    }
+    strikeBtn.addEventListener('click', fireBolt);
+  });
+
+  safe('Slide 5 – EMV', function(){
+    var chips = document.querySelectorAll('#dut5, #tentFabric5, #noise5');
+    var chipButtons = document.querySelectorAll('.chip');
+    chipButtons.forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var target = document.getElementById(chip.dataset.target);
+        chips.forEach(function(el){
+          el.classList.remove('hl-active','dimmed');
+          if(target && el === target) el.classList.add('hl-active');
+          else el.classList.add('dimmed');
+        });
+        chipButtons.forEach(function(c){ c.classList.toggle('chip-active', c===chip); });
+      });
+    });
+  });
+
+  safe('Slide 6 – Mikrowelle', function(){
+    var meshSlider = document.getElementById('meshSlider');
+    var holesGroup6 = document.getElementById('holesGroup6');
+    var meshLabel6 = document.getElementById('meshLabel6');
+    var meshStatus6 = document.getElementById('meshStatus6');
+    var waveOut6 = document.getElementById('waveOut6');
+    var waveReflect6 = document.getElementById('waveReflect6');
+
+    function updateDoor(val){
+      var holeSize = 4 + val*2.6;
+      holesGroup6.innerHTML = '';
+      var startY = 55, gap = 34;
+      for(var i=0;i<6;i++){
+        var y = startY + i*gap;
+        var r = document.createElementNS(svgNS,'rect');
+        r.setAttribute('x', 240 - holeSize/2);
+        r.setAttribute('y', y - holeSize/2);
+        r.setAttribute('width', holeSize);
+        r.setAttribute('height', holeSize);
+        r.setAttribute('class','hole6');
+        holesGroup6.appendChild(r);
+      }
+      var blocked = val <= 5;
+      waveOut6.style.opacity = blocked ? 0 : 1;
+      waveReflect6.style.opacity = blocked ? 1 : 0;
+      if(val<=3) meshLabel6.textContent = 'klein (≪ Wellenlänge)';
+      else if(val<=6) meshLabel6.textContent = 'mittel (≈ Wellenlänge)';
+      else meshLabel6.textContent = 'groß (> Wellenlänge)';
+      meshStatus6.textContent = blocked ? 'Sicher: Mikrowellen bleiben im Garraum' : 'Warnung: Strahlung könnte austreten (Modell)';
+      meshStatus6.className = 'status-text ' + (blocked ? 'status-good' : 'status-warn');
+    }
+    meshSlider.addEventListener('input', function(){ updateDoor(+this.value); });
+    updateDoor(3);
+  });
+
+  safe('Slide 7 – Koaxialkabel', function(){
+    var toggle7 = document.getElementById('toggle7');
+    var noiseGroup7 = document.getElementById('noiseGroup7');
+    var status7 = document.getElementById('status7');
+    toggle7.addEventListener('change', function(){
+      noiseGroup7.classList.toggle('active', toggle7.checked);
+      status7.textContent = toggle7.checked ? 'Ein — Ladungen wandern an die Kontaktstellen und blockieren das Störfeld' : 'Aus';
+    });
+  });
+
+  window.addEventListener('load', function(){
+    document.body.classList.add('loaded');
+  });
+  setTimeout(function(){ document.body.classList.add('loaded'); }, 300);
+})();
+</script>
+</body>
+</html>
