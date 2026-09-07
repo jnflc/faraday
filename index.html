@@ -257,15 +257,29 @@
   .shield7{ fill:url(#hatch7); stroke:var(--line); stroke-width:1.5; }
   .dielectric7{ fill:var(--paper); opacity:.85; stroke:var(--line); stroke-width:1; }
   .core7{ fill:var(--amber); stroke:var(--blueprint-deep); stroke-width:1; }
+  .carrier7 circle{ fill:var(--line-dim); }
+  .carrier7 text{ font-weight:700; text-anchor:middle; dominant-baseline:central; fill:var(--blueprint-deep); opacity:.8; }
   .leader-line7{ stroke:var(--line-dim); stroke-width:1; }
   .leader-text7{ font-size:10.5px; fill:var(--line); }
-  #noiseGroup7{ opacity:0; transition:opacity .4s; }
-  #noiseGroup7.active{ opacity:1; }
-  .noise-block7{ stroke:var(--accent-red); stroke-width:2; fill:none; }
-  .noise-arrow7{ stroke:var(--line); stroke-width:2; fill:none; stroke-linecap:round; stroke-dasharray:6 6; }
-  #noiseGroup7.active .noise-arrow7{ animation:noiseFlow7 .9s linear infinite; }
+
+  .noise-arrow7{ stroke:var(--line-dim); stroke-width:2; fill:none; stroke-linecap:round; stroke-dasharray:6 6; opacity:0; transition:opacity .4s; }
+  #interferenceRoot7.s1 .noise-arrow7{ opacity:1; animation:noiseFlow7 .9s linear infinite; }
   @keyframes noiseFlow7{ to{ stroke-dashoffset:-24; } }
-  #noiseGroup7.active .mover{ transform:translate(calc(var(--x) + var(--dx)), calc(var(--y) + var(--dy))); transition-delay:.15s; }
+
+  .fseg7{ fill:none; stroke:var(--line); stroke-width:2.5; stroke-linecap:round; }
+  #fieldThroughShield7{ opacity:0; transition:opacity .4s; }
+  #interferenceRoot7.s1 #fieldThroughShield7{ opacity:1; }
+  #interferenceRoot7.s4 #fieldThroughShield7{ opacity:0; }
+
+  #interferenceRoot7.s2 .mover{ transform:translate(calc(var(--x) + var(--dx)), calc(var(--y) + var(--dy))); }
+
+  .fseg7-induced{ fill:none; stroke:var(--amber); stroke-width:2.5; stroke-linecap:round; }
+  #fieldInducedShield7{ opacity:0; transition:opacity .4s; }
+  #interferenceRoot7.s3 #fieldInducedShield7{ opacity:1; }
+  #interferenceRoot7.s4 #fieldInducedShield7{ opacity:0; }
+
+  #ezero7{ opacity:0; transition:opacity .5s ease .15s; }
+  #interferenceRoot7.s4 #ezero7{ opacity:1; }
 
   /* literature */
   .lit-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; }
@@ -612,24 +626,62 @@
         <div class="slide-inner">
           <div class="diagram-panel">
             <span class="fig-tag">Abb. 07</span>
-            <svg viewBox="0 0 480 320" role="img" aria-label="Querschnitt eines Koaxialkabels, dessen Schirmgeflecht äußere Störfelder abhält">
+            <svg viewBox="0 0 480 320" role="img" aria-label="Störfeld trifft von außen auf das Schirmgeflecht. Ladungen wandern an die Kontaktstellen und bauen ein Gegenfeld auf; beide Felder löschen sich im Schirm aus, der Innenleiter bleibt ungestört">
               <defs>
                 <pattern id="hatch7" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <line x1="0" y1="0" x2="0" y2="8" class="mesh-line"/>
                 </pattern>
+                <marker id="arrow7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" class="arrow-fill"/>
+                </marker>
+                <marker id="arrow7b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill="var(--amber)"/>
+                </marker>
               </defs>
-              <g id="noiseGroup7">
-                <path class="noise-arrow7" d="M240,20 L240,48"/>
-                <path class="noise-arrow7" d="M102,93 L135,115"/>
-                <path class="noise-arrow7" d="M378,93 L345,115"/>
-                <g class="charge mover" style="--x:205px;--y:78px;--dx:35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
-                <g class="charge mover" style="--x:170px;--y:145px;--dx:-35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
-                <g class="charge mover" style="--x:310px;--y:145px;--dx:35px;--dy:-30px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
-              </g>
               <circle class="jacket7" cx="240" cy="160" r="92"/>
               <circle class="shield7" cx="240" cy="160" r="76"/>
               <circle class="dielectric7" cx="240" cy="160" r="55"/>
               <circle class="core7" cx="240" cy="160" r="20"/>
+              <g id="shieldCarriers7">
+                <g class="charge carrier7" transform="translate(305,160)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(293,198)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(260,222)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(220,222)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(187,198)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(175,160)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(187,122)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(260,98)"><circle r="5"/><text font-size="7">−</text></g>
+                <g class="charge carrier7" transform="translate(293,122)"><circle r="5"/><text font-size="7">−</text></g>
+              </g>
+
+              <g id="interferenceRoot7">
+                <g id="noiseOuter7">
+                  <path class="noise-arrow7" d="M240,20 L240,48"/>
+                  <path class="noise-arrow7" d="M102,93 L135,115"/>
+                  <path class="noise-arrow7" d="M378,93 L345,115"/>
+                </g>
+
+                <g id="fieldThroughShield7">
+                  <line class="fseg7" marker-end="url(#arrow7)" x1="240" y1="92" x2="240" y2="102"/>
+                  <line class="fseg7" marker-end="url(#arrow7)" x1="177" y1="133" x2="187" y2="137"/>
+                  <line class="fseg7" marker-end="url(#arrow7)" x1="303" y1="133" x2="293" y2="137"/>
+                </g>
+
+                <g id="chargePairs7">
+                  <g class="charge mover" style="--x:270px;--y:90px;--dx:-30px;--dy:-6px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge mover" style="--x:185px;--y:155px;--dx:-15px;--dy:-25px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+                  <g class="charge mover" style="--x:295px;--y:155px;--dx:15px;--dy:-25px"><circle r="9" class="charge-bg-block"/><text class="charge-symbol" font-size="11">−</text></g>
+                </g>
+
+                <g id="fieldInducedShield7">
+                  <line class="fseg7-induced" marker-end="url(#arrow7b)" x1="240" y1="102" x2="240" y2="92"/>
+                  <line class="fseg7-induced" marker-end="url(#arrow7b)" x1="187" y1="137" x2="177" y2="133"/>
+                  <line class="fseg7-induced" marker-end="url(#arrow7b)" x1="293" y1="137" x2="303" y2="133"/>
+                </g>
+
+                <text id="ezero7" x="240" y="165" text-anchor="middle" fill="var(--blueprint-deep)" font-weight="700" font-size="12">E ≈ 0</text>
+              </g>
+
               <line class="leader-line7" x1="226" y1="146" x2="120" y2="60"/>
               <text class="leader-text7" x="30" y="55">Innenleiter</text>
               <text class="leader-text7" x="30" y="68">(Kupferkern)</text>
@@ -642,15 +694,12 @@
               <line class="leader-line7" x1="298" y1="222" x2="395" y2="275"/>
               <text class="leader-text7" x="335" y="291">Außenmantel</text>
             </svg>
-            <div class="control-row">
-              <label class="toggle">
-                <input type="checkbox" id="toggle7" aria-label="Störfeld ein- oder ausschalten">
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              </label>
-              <div class="control-text">
-                <span class="control-title">Störfeld</span>
-                <span class="status-text" id="status7">Aus</span>
+            <div class="control-row column">
+              <div class="step-row">
+                <button class="step-btn" id="stepBack7" aria-label="Schritt zurück" disabled>‹</button>
+                <button class="btn" id="stepNext7">Störfeld anlegen</button>
               </div>
+              <span class="status-text" id="status7">Schritt 0 / 4 — kein Störfeld</span>
             </div>
           </div>
         </div>
@@ -957,13 +1006,48 @@
   });
 
   safe('Slide 7 – Koaxialkabel', function(){
-    var toggle7 = document.getElementById('toggle7');
-    var noiseGroup7 = document.getElementById('noiseGroup7');
+    var interferenceRoot7 = document.getElementById('interferenceRoot7');
+    var stepNext7 = document.getElementById('stepNext7');
+    var stepBack7 = document.getElementById('stepBack7');
     var status7 = document.getElementById('status7');
-    toggle7.addEventListener('change', function(){
-      noiseGroup7.classList.toggle('active', toggle7.checked);
-      status7.textContent = toggle7.checked ? 'Ein — Ladungen wandern an die Kontaktstellen und blockieren das Störfeld' : 'Aus';
+    var STEP_COUNT = 4;
+    var step = 0;
+
+    var nextLabels = [
+      'Störfeld anlegen',
+      'Ladungen wandern lassen',
+      'Gegenfeld zeigen',
+      'Felder auslöschen',
+      'Zurücksetzen'
+    ];
+    var statusTexts = [
+      'Schritt 0 / 4 — kein Störfeld',
+      'Schritt 1 / 4 — Störfeld nähert sich von außen',
+      'Schritt 2 / 4 — Ladungen wandern an die Kontaktstellen',
+      'Schritt 3 / 4 — Gegenfeld baut sich im Schirmgeflecht auf',
+      'Schritt 4 / 4 — Felder löschen sich aus → Innenleiter bleibt ungestört'
+    ];
+
+    function render(){
+      interferenceRoot7.classList.toggle('s1', step>=1);
+      interferenceRoot7.classList.toggle('s2', step>=2);
+      interferenceRoot7.classList.toggle('s3', step>=3);
+      interferenceRoot7.classList.toggle('s4', step>=4);
+      status7.textContent = statusTexts[step];
+      stepNext7.textContent = nextLabels[step];
+      stepBack7.disabled = (step===0);
+    }
+
+    stepNext7.addEventListener('click', function(){
+      step = (step>=STEP_COUNT) ? 0 : step+1;
+      render();
     });
+    stepBack7.addEventListener('click', function(){
+      step = Math.max(0, step-1);
+      render();
+    });
+
+    render();
   });
 
   window.addEventListener('load', function(){
