@@ -1034,8 +1034,18 @@
   safe('Slide 5 – EMV', function(){
     var chips = document.querySelectorAll('#dut5, #tentFabric5, #noise5');
     var chipButtons = document.querySelectorAll('.chip');
+    var activeChip = null;
+    function clearAll(){
+      chips.forEach(function(el){ el.classList.remove('hl-active','dimmed'); });
+      chipButtons.forEach(function(c){ c.classList.remove('chip-active'); });
+      activeChip = null;
+    }
     chipButtons.forEach(function(chip){
       chip.addEventListener('click', function(){
+        if(activeChip === chip){
+          clearAll();
+          return;
+        }
         var target = document.getElementById(chip.dataset.target);
         chips.forEach(function(el){
           el.classList.remove('hl-active','dimmed');
@@ -1043,6 +1053,7 @@
           else el.classList.add('dimmed');
         });
         chipButtons.forEach(function(c){ c.classList.toggle('chip-active', c===chip); });
+        activeChip = chip;
       });
     });
   });
