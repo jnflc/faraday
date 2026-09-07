@@ -193,6 +193,9 @@
   .chg-neg3{ font-size:15px; fill:var(--teal); text-anchor:middle; font-weight:700; }
   .chg-pos3{ font-size:15px; fill:var(--amber); text-anchor:middle; font-weight:700; }
   .fline3{ stroke:var(--line); stroke-linecap:round; }
+  .drag-handle{ cursor:grab; touch-action:none; }
+  .drag-handle:active{ cursor:grabbing; }
+  .drag-handle.dragging .core3{ stroke:var(--line); stroke-width:2.5; }
 
   /* slide 4 */
   .storm-cloud{ fill:var(--metal); opacity:.9; }
@@ -480,14 +483,18 @@
               </g>
               <g id="innerCharges3"></g>
               <g id="outerCharges3"></g>
-              <circle id="centerCharge3" cx="240" cy="170" r="13" class="core3"/>
-              <text x="240" y="174" text-anchor="middle" font-size="11" fill="var(--blueprint-deep)" font-weight="700">+Q</text>
+              <g id="chargeDrag3" class="drag-handle">
+                <circle id="centerCharge3" cx="0" cy="0" r="13" class="core3"/>
+                <text x="0" y="4" text-anchor="middle" font-size="11" fill="var(--blueprint-deep)" font-weight="700">+Q</text>
+                <circle r="26" fill="transparent" class="drag-hit-area"/>
+              </g>
             </svg>
             <div class="control-row column">
               <div class="slider-row">
                 <div class="row-top"><span>Ladung im Hohlraum</span><span>Q = <span id="qVal3">2</span></span></div>
                 <input type="range" id="qSlider" min="1" max="5" step="1" value="2" aria-label="Ladung Q einstellen">
               </div>
+              <span class="status-text">↕ Ladung im Hohlraum ist frei verschiebbar</span>
             </div>
           </div>
         </div>
@@ -859,10 +866,87 @@
     var innerG = document.getElementById('innerCharges3');
     var outerG = document.getElementById('outerCharges3');
     var centerCharge3 = document.getElementById('centerCharge3');
+    var chargeDrag3 = document.getElementById('chargeDrag3');
+    var svgEl = chargeDrag3.ownerSVGElement;
     var flinesOuter3 = document.querySelectorAll('#fieldLines3 .fline3');
     var flinesInner3 = document.querySelectorAll('#fieldLinesInner3 .fline3');
 
-    function renderGauss(q){
+    var q = 2;
+    var chargeX = 240, chargeY = 170;
+
+    function raycastToWall(px, py, deg){
+      var rad = deg*Math.PI/180;
+      var dirx = Math.cos(rad), diry = Math.sin(rad);
+      var dx = px-240, dy = py-170;
+      var b = dx*dirx + dy*diry;
+      var c = dx*dx + dy*dy - 75*75;
+      var disc = Math.max(0, b*b - c);
+      var t = -b + Math.sqrt(disc);
+      return [px + t*dirx, py + t*diry];
+    }
+
+    function updateInnerField(){
+      var coreR = 9 + q*2.6;
+      flinesInner3.forEach(function(line, i){
+        var deg = i*45;
+        var rad = deg*Math.PI/180;
+        var x1 = chargeX + (coreR+5)*Math.cos(rad);
+        var y1 = chargeY + (coreR+5)*Math.sin(rad);
+        var end = raycastToWall(chargeX, chargeY, deg);
+        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+        line.setAttribute('x2', end[0]); line.setAttribute('y2', end[1]);
+        line.setAttribute('stroke-width', 1.3+q*0.35);
+      });
+    }
+
+    function setChargePosition(x, y){
+      var coreR = 9 + q*2.6;
+      var maxDist = 75 - coreR - 6;
+      var dx = x-240, dy = y-170;
+      var dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist > maxDist && dist > 0){
+        var scale = maxDist/dist;
+        dx *= scale; dy *= scale;
+      }
+      chargeX = 240+dx; chargeY = 170+dy;
+      chargeDrag3.setAttribute('transform', 'translate('+chargeX+','+chargeY+')');
+      updateInnerField();
+    }
+
+    function svgPoint(clientX, clientY){
+      var pt = svgEl.createSVGPoint();
+      pt.x = clientX; pt.y = clientY;
+      var ctm = svgEl.getScreenCTM();
+      if(!ctm) return {x:chargeX, y:chargeY};
+      var loc = pt.matrixTransform(ctm.inverse());
+      return {x:loc.x, y:loc.y};
+    }
+
+    var dragging = false;
+    chargeDrag3.addEventListener('pointerdown', function(e){
+      e.preventDefault(); e.stopPropagation();
+      dragging = true;
+      chargeDrag3.classList.add('dragging');
+      try{ chargeDrag3.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    chargeDrag3.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      e.preventDefault();
+      var p = svgPoint(e.clientX, e.clientY);
+      setChargePosition(p.x, p.y);
+    });
+    function endDrag(e){
+      dragging = false;
+      chargeDrag3.classList.remove('dragging');
+      try{ chargeDrag3.releasePointerCapture(e.pointerId); }catch(err){}
+    }
+    chargeDrag3.addEventListener('pointerup', endDrag);
+    chargeDrag3.addEventListener('pointercancel', endDrag);
+    chargeDrag3.addEventListener('touchstart', function(e){ e.stopPropagation(); }, {passive:false});
+    chargeDrag3.addEventListener('touchmove', function(e){ e.stopPropagation(); e.preventDefault(); }, {passive:false});
+
+    function renderGauss(newQ){
+      q = newQ;
       qVal3.textContent = q;
       var coreR = 9 + q*2.6;
       centerCharge3.setAttribute('r', coreR);
@@ -888,16 +972,7 @@
         g2.appendChild(c2); g2.appendChild(s2);
         outerG.appendChild(g2);
       }
-      // Feld im Hohlraum: von der Ladung bis zur Innenwand — endet dort, geht NICHT durch den Leiter hindurch
-      flinesInner3.forEach(function(line, i){
-        var deg = i*45;
-        var p1 = polar(240,170,coreR+7,deg);
-        var p2 = polar(240,170,73,deg);
-        line.setAttribute('x1',p1[0]); line.setAttribute('y1',p1[1]);
-        line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
-        line.setAttribute('stroke-width', 1.3+q*0.35);
-      });
-      // Feld außerhalb der Hülle: eigenständiges Feld, erzeugt von der äußeren Ladung +Q
+      // Feld außerhalb der Hülle: eigenständiges Feld, erzeugt von der äußeren Ladung +Q — unabhängig von der Position der Ladung im Hohlraum
       flinesOuter3.forEach(function(line, i){
         var deg = i*45;
         var p1 = polar(240,170,118,deg);
@@ -906,6 +981,8 @@
         line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
         line.setAttribute('stroke-width', 1.3+q*0.35);
       });
+      // Feld im Hohlraum: folgt der aktuellen (ziehbaren) Position der Ladung, endet an der Innenwand
+      setChargePosition(chargeX, chargeY);
     }
     qSlider.addEventListener('input', function(){ renderGauss(+this.value); });
     renderGauss(2);
